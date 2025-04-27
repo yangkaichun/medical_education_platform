@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <title>衛教影片設定</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.2/css/all.min.css">
+  <!-- Google Fonts: Noto Sans TC for clear Chinese font -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/noto-sans-tc@3.3.1/index.min.css">
+</head>
+<body class="bg-gray-100 font-sans text-gray-800 tracking-normal">
+
+  <div class="w-full max-w-5xl mx-auto py-8 px-4">
+    <header class="mb-8 flex items-center justify-between">
+      <h1 class="text-2xl font-bold flex items-center gap-3">
+        <i class="fa-solid fa-gear text-blue-500"></i>
+        衛教影片設定
+      </h1>
+      <button id="saveAllBtn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
+        <i class="fa-solid fa-floppy-disk mr-2"></i> 儲存全部設定
+      </button>
+    </header>
+
+    <!-- 主題管理 Section -->
+    <section class="mb-12 bg-white rounded shadow p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold flex items-center gap-2">
+          <i class="fa-solid fa-list"></i>
+          衛教主題設定
+        </h2>
+        <button id="addSubjectBtn" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600">
+          <i class="fa-solid fa-plus mr-1"></i> 新增主題
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="min-w-full border divide-y divide-gray-200" id="subjectsTable">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-2 text-left">編號</th>
+              <th class="px-4 py-2 text-left">主題名稱</th>
+              <th class="px-4 py-2">YouTube 連結</th>
+              <th class="px-4 py-2">操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- 動態產生 subject rows -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 主題與問卷編輯 Section -->
+    <section class="bg-white rounded shadow p-6">
+      <h2 class="text-xl font-semibold flex items-center gap-2 mb-4">
+        <i class="fa-solid fa-pen-to-square"></i>
+        問卷設定
+      </h2>
+      <div>
+        <label for="subjectSelect" class="font-semibold mr-2">選擇主題：</label>
+        <select id="subjectSelect" class="border px-2 py-1 rounded">
+          <option disabled selected>請選擇</option>
+        </select>
+        <button id="previewBtn" class="ml-4 px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600" title="預覽問卷">
+          <i class="fa-solid fa-eye"></i> 預覽
+        </button>
+      </div>
+
+      <div id="questionnaireEditor" class="mt-6 hidden">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-lg font-medium">問卷題目</span>
+          <button id="addQuestionBtn" class="bg-green-500 text-white px-2 py-1 rounded hover:bg-green-600">
+            <i class="fa-solid fa-plus"></i> 新增題目
+          </button>
+        </div>
+        <div id="questionsContainer" class="space-y-6">
+          <!-- 問題動態產生區 -->
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 問卷預覽 Modal -->
+  <div id="previewModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded shadow-lg w-full max-w-md mx-2 p-6 relative">
+      <button class="absolute right-3 top-3 text-xl text-gray-400 hover:text-gray-600" onclick="document.getElementById('previewModal').classList.add('hidden')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <h3 class="text-lg font-semibold mb-3 flex items-center gap-2"><i class="fa-solid fa-eye"></i> 問卷預覽</h3>
+      <div id="previewContent"></div>
+    </div>
+  </div>
+
+  <!-- 編輯主題 Modal -->
+  <div id="subjectModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center">
+    <div class="bg-white rounded shadow-lg w-full max-w-sm mx-2 p-6 relative">
+      <button class="absolute right-3 top-3 text-xl text-gray-400 hover:text-gray-600" onclick="closeSubjectModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <h3 id="subjectModalTitle" class="text-lg font-semibold mb-5"></h3>
+      <form id="subjectForm">
+        <div class="mb-4">
+          <label class="block font-medium mb-1">主題名稱</label>
+          <input id="modalSubjectName" class="border px-3 py-1 rounded w-full" required>
+        </div>
+        <div class="mb-4">
+          <label class="block font-medium mb-1">YouTube 連結 (或MP4網址)</label>
+          <input id="modalSubjectURL" class="border px-3 py-1 rounded w-full" type="url" placeholder="https://www.youtube.com/watch?v=..." required>
+        </div>
+        <div class="flex justify-end">
+          <button type="submit" class="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700">儲存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // ---------- 資料結構 ----------
+    // subjects: [{ id, name, url, questions: [{ type: 'choice'/'boolean', text, options, score }] }]
+    let subjects = [];
+    const SUBJECTS_KEY = 'eduvideos_subjects';
+    // 將資料存本地端 localStorage，以及可擴充至 GitHub API
+
+    function saveSubjects() {
+      localStorage.setItem(SUBJECTS_KEY, JSON.stringify(subjects));
+    }
+
+    function loadSubjects() {
+      const data = localStorage.getItem(SUBJECTS_KEY);
+      if (data) subjects = JSON.parse(data);
+    }
+
+    // ---------- 主題管理 ----------
+    function renderSubjectsTable() {
+      const tbody = document.querySelector('#subjectsTable tbody');
+      tbody.innerHTML = '';
+      subjects.forEach((subj, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+        tr.innerHTML = `
+          <td class="px-4 py-2">${subj.id}</td>
+          <td class="px-4 py-2">${subj.name}</td>
+          <td class="px-4 py-2 w-48 truncate">
+            <a href="${subj.url}" target="_blank" class="text-blue-600 underline text-sm">${subj.url}</a>
+          </td>
+          <td class="px-4 py-2 flex gap-2 items-center">
+            <button class="px-2 py-0.5 bg-yellow-500 text-white rounded editSubjectBtn" data-idx="${idx}">
+              <i class="fa-solid fa-edit"></i>
+            </button>
+            <button class="px-2 py-0.5 bg-red-600 text-white rounded delSubjectBtn" data-idx="${idx}">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      updateSubjectSelect();
+    }
+
+    // --------- 主題編輯 Modal ---------
+    let subjectEditIdx = null;
+    function openSubjectModal(isEdit, idx = null) {
+      const modal = document.getElementById('subjectModal');
+      const title = document.getElementById('subjectModalTitle');
+      const inputName = document.getElementById('modalSubjectName');
+      const inputURL = document.getElementById('modalSubjectURL');
+      subjectEditIdx = idx;
+      if (isEdit && idx !== null) {
+        title.textContent = '編輯主題';
+        inputName.value = subjects[idx].name;
+        inputURL.value = subjects[idx].url;
+      } else {
+        title.textContent = '新增主題';
+        inputName.value = '';
+        inputURL.value = '';
+      }
+      modal.classList.remove('hidden');
+    }
+    function closeSubjectModal() {
+      document.getElementById('subjectModal').classList.add('hidden');
+    }
+
+    document.getElementById('addSubjectBtn').onclick = () => openSubjectModal(false);
+
+    document.addEventListener('click', e => {
+      if (e.target.closest('.editSubjectBtn')) {
+        const idx = +e.target.closest('.editSubjectBtn').dataset.idx;
+        openSubjectModal(true, idx);
+      }
+      if (e.target.closest('.delSubjectBtn')) {
+        const idx = +e.target.closest('.delSubjectBtn').dataset.idx;
+        if (confirm('確定要刪除該主題？')) {
+          subjects.splice(idx,1);
+          saveSubjects();
+          renderSubjectsTable();
+          renderQuestions();
+        }
+      }
+    });
+
+    document.getElementById('subjectForm').onsubmit = function(e) {
+      e.preventDefault();
+      const name = document.getElementById('modalSubjectName').value.trim();
+      const url = document.getElementById('modalSubjectURL').value.trim();
+      if (subjectEditIdx !== null) {
+        subjects[subjectEditIdx].name = name;
+        subjects[subjectEditIdx].url = url;
+      } else {
+        const newId = subjects.length ? (Math.max(...subjects.map(s=>parseInt(s.id)||0))+1)+'' : '1';
+        subjects.push({ id: newId, name, url, questions: [] });
+      }
+      saveSubjects();
+      renderSubjectsTable();
+      closeSubjectModal();
+    };
+
+    // ----------- 主題選擇 ----------
+    function updateSubjectSelect() {
+      const sel = document.getElementById('subjectSelect');
+      const current = sel.value;
+      sel.innerHTML = '<option disabled selected>請選擇</option>';
+      subjects.forEach((s, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `No.${s.id} - ${s.name}`;
+        if (current == idx) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      if (subjects.length === 0) document.getElementById('questionnaireEditor').classList.add('hidden');
+    }
+
+    document.getElementById('subjectSelect').onchange = renderQuestions;
+
+    // ----------- 問卷編輯 ----------
+    function renderQuestions() {
+      const sel = document.getElementById('subjectSelect');
+      if (!sel.value || !subjects[sel.value]) {
+        document.getElementById('questionnaireEditor').classList.add('hidden');
+        return;
+      }
+      document.getElementById('questionnaireEditor').classList.remove('hidden');
+      const qs = subjects[sel.value].questions||[];
+      const container = document.getElementById('questionsContainer');
+      container.innerHTML = '';
+      qs.forEach((q,i) => {
+        const qDiv = document.createElement('div');
+        qDiv.className = "border rounded p-4 bg-gray-50 relative";
+        qDiv.innerHTML = `
+          <div class="flex items-center mb-2 gap-2">
+            <span class="font-medium mr-2">題目 ${i+1}</span>
+            <button class="text-red-500 hover:text-red-700 ml-auto delQuestionBtn" data-idx="${i}" title="刪除">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+          <input class="border px-2 py-1 rounded w-full mb-2 questionText" placeholder="輸入題目文字" value="${q.text||''}">
+          <div class="flex items-center gap-4 mb-2">
+            <label class="flex items-center gap-1">
+              <input type="radio" name="type-${i}" value="boolean" class="mr-1 typeRadio" ${q.type==='boolean'?'checked':''}> 是非題
+            </label>
+            <label class="flex items-center gap-1">
+              <input type="radio" name="type-${i}" value="choice" class="mr-1 typeRadio" ${q.type==='choice'?'checked':''}> 選擇題
+            </label>
+            <input type="number" class="ml-3 border w-20 px-1 py-0.5 rounded questionScore" value="${q.score||0}" min="0" title="分數">
+            <span class="ml-1 text-xs text-gray-400">分</span>
+          </div>
+          <div class="optionsWrap ${q.type==='choice'?'':'hidden'}">
+            <label class="block text-sm font-medium mb-1">選項（每行一個）：</label>
+            <textarea class="border px-2 py-1 rounded w-full questionOptions" placeholder="請輸入每個選項">${Array.isArray(q.options)?q.options.join('\n'):''}</textarea>
+          </div>
+        `;
+        // Listener 新增
+        // 題型切換
+        setTimeout(()=>{
+          qDiv.querySelectorAll('.typeRadio').forEach(radio=>{
+            radio.onchange = function() {
+              if (this.value === 'choice') {
+                qDiv.querySelector('.optionsWrap').classList.remove('hidden');
+              } else {
+                qDiv.querySelector('.optionsWrap').classList.add('hidden');
+              }
+            }
+          });
+          // 刪除
+          qDiv.querySelector('.delQuestionBtn').onclick = () => {
+            qs.splice(i,1);
+            saveSubjects();
+            renderQuestions();
+          };
+        }, 1);
+
+        container.appendChild(qDiv);
+      });
+    }
+
+    // 更新當前問卷內容
+    function syncQuestionsToSubject() {
+      const sel = document.getElementById('subjectSelect');
+      if (!sel.value || !subjects[sel.value]) return;
+      const qs = [];
+      document.querySelectorAll('#questionsContainer>div').forEach((qDiv, i) => {
+        const text = qDiv.querySelector('.questionText').value.trim();
+        const type = Array.from(qDiv.querySelectorAll('.typeRadio')).find(r=>r.checked).value;
+        const score = parseInt(qDiv.querySelector('.questionScore').value)||0;
+        let options = [];
+        if (type === 'choice') {
+          options = qDiv.querySelector('.questionOptions').value.split('\n').map(o=>o.trim()).filter(Boolean);
+        }
+        qs.push({ text, type, options, score });
+      });
+      subjects[sel.value].questions = qs;
+      saveSubjects();
+    }
+
+    document.getElementById('addQuestionBtn').onclick = function() {
+      syncQuestionsToSubject();
+      const sel = document.getElementById('subjectSelect').value;
+      if (!subjects[sel]) return;
+      if (!subjects[sel].questions) subjects[sel].questions = [];
+      subjects[sel].questions.push({ text:'', type:'boolean', options:[], score:0 });
+      saveSubjects();
+      renderQuestions();
+    };
+
+    // 離開題目/分數/選項輸入框時儲存
+    document.getElementById('questionsContainer').addEventListener('input', function(e){
+      syncQuestionsToSubject();
+    });
+
+    // ----------- 問卷預覽 ----------
+    document.getElementById('previewBtn').onclick = function() {
+      syncQuestionsToSubject();
+      const sel = document.getElementById('subjectSelect');
+      if (!sel.value || !subjects[sel.value] || !subjects[sel.value].questions.length) return;
+      const qs = subjects[sel.value].questions;
+      const wrap = document.getElementById('previewContent');
+      wrap.innerHTML = '';
+      qs.forEach((q,idx) => {
+        const qDiv = document.createElement('div');
+        qDiv.className="mb-5";
+        qDiv.innerHTML = `<div class="font-medium mb-1">${idx+1}. ${q.text} <span class="ml-2 text-xs text-gray-400">${q.type==='choice'?'選擇題':'是非題'}・${q.score}分</span></div>`;
+        if (q.type === 'boolean') {
+          qDiv.innerHTML += `
+            <label class="mr-3"><input type="radio" name="pv${idx}" disabled> 是</label>
+            <label><input type="radio" name="pv${idx}" disabled> 否</label>
+          `;
+        } else if (q.type === 'choice' && Array.isArray(q.options)) {
+          q.options.forEach((opt,oi)=>{
+            qDiv.innerHTML += `<div><label><input type="radio" name="pv${idx}" disabled> ${opt}</label></div>`;
+          });
+        }
+        wrap.appendChild(qDiv);
+      });
+      document.getElementById('previewModal').classList.remove('hidden');
+    };
+
+    // 儲存全部（同步問題與主題）
+    document.getElementById('saveAllBtn').onclick = function() {
+      syncQuestionsToSubject();
+      alert('已儲存所有設定到瀏覽器。');
+    };
+
+    // ------ 啟動初始化 ------
+    function setupDemoData() {
+      // 只會在首次 localStorage 無資料時設測資
+      subjects = [
+        { id: "1", name: "糖尿病飲食", url: "https://www.youtube.com/watch?v=abcd1234", questions: [
+          { text: "糖尿病患者每天都要量血糖？", type: "boolean", score: 5 },
+          { text: "飲食選擇困難時該怎麼辦？", type: "choice", options: ["詢問醫師", "看書", "隨便吃"], score: 10 },
+        ]},
+        { id: "2", name: "高血壓運動", url: "https://www.youtube.com/watch?v=efgh5678", questions: [
+          { text: "運動能幫助降血壓嗎？", type: "boolean", score: 5 },
+        ]}
+      ];
+      saveSubjects();
+    }
+    if (!localStorage.getItem(SUBJECTS_KEY)) setupDemoData();
+    loadSubjects();
+    renderSubjectsTable();
+
+    // -------- Modal 關閉點擊遮罩 --------
+    document.getElementById('subjectModal').addEventListener('click', function(e){
+      if (e.target === this) closeSubjectModal();
+    });
+    document.getElementById('previewModal').addEventListener('click', function(e){
+      if (e.target === this) document.getElementById('previewModal').classList.add('hidden');
+    });
+  </script>
+</body>
+</html>
+    <script id="html_badge_script1">
+        window.__genspark_remove_badge_link = "https://www.genspark.ai/api/html_badge/" +
+            "remove_badge?token=To%2FBnjzloZ3UfQdcSaYfDi5BXW%2Ftop17jMVn6dztd8KCnqtGJri3ivEgNVHAfF9RCXBMQgr0iwMHVV3rs1Oz5jKGu9%2B8OapqRRGBIIa7B05CgH%2FUlmesQgt5NKVqi4oeTe43UIxTRJ39j6r7ckeN5l4jbo1G6vDyfE1hkrownpoZQ2McrQHT3o%2F8aPV3Sa21vHzRfSI3GwFTgb%2BTEv1frlqF%2FGXqmlRRMJdlPInZn9ACEY5xDTLxhUI52gttjCGkM826bCO7SQmJXVc%2FYh2hp8xYWfiilF1gutucP25GK968pZPsje2Lvnlg5xv8bobehityG1WiEzdNuCq69MH0U7CwpJ%2BYLuKwbwigx3w0PrVRg5oee2WiyLzOPYbUqm6ZgBUJMp%2B880H2%2Bh2PFXdNDHLeIQWohNjTAVTKrD%2B1ZJe0%2FiMCOVAnp3siCDenhgMoso%2BgOfxvNmeAAy0eb1VLdWriFx8UfAeJPLyDi2OIsyfNj%2FzrDG9aKOK5uFGeVnQ3";
+        window.__genspark_locale = "zh-TW";
+        window.__genspark_token = "To/BnjzloZ3UfQdcSaYfDi5BXW/top17jMVn6dztd8KCnqtGJri3ivEgNVHAfF9RCXBMQgr0iwMHVV3rs1Oz5jKGu9+8OapqRRGBIIa7B05CgH/UlmesQgt5NKVqi4oeTe43UIxTRJ39j6r7ckeN5l4jbo1G6vDyfE1hkrownpoZQ2McrQHT3o/8aPV3Sa21vHzRfSI3GwFTgb+TEv1frlqF/GXqmlRRMJdlPInZn9ACEY5xDTLxhUI52gttjCGkM826bCO7SQmJXVc/Yh2hp8xYWfiilF1gutucP25GK968pZPsje2Lvnlg5xv8bobehityG1WiEzdNuCq69MH0U7CwpJ+YLuKwbwigx3w0PrVRg5oee2WiyLzOPYbUqm6ZgBUJMp+880H2+h2PFXdNDHLeIQWohNjTAVTKrD+1ZJe0/iMCOVAnp3siCDenhgMoso+gOfxvNmeAAy0eb1VLdWriFx8UfAeJPLyDi2OIsyfNj/zrDG9aKOK5uFGeVnQ3";
+    </script>
+    
