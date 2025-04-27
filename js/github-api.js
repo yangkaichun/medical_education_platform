@@ -49,11 +49,7 @@ const GitHubAPI = (function() {
                     }
                 });
                 
-                if (response.status === 200) {
-                    return true;
-                }
-                
-                return false;
+                return response.status === 200;
             } catch (error) {
                 console.error('測試GitHub配置失敗:', error);
                 return false;
@@ -82,6 +78,11 @@ const GitHubAPI = (function() {
                 
                 const contentData = await contentResponse.json();
                 
+                // 檢查是否是目錄而非文件
+                if (Array.isArray(contentData)) {
+                    return null;
+                }
+                
                 // 解碼base64內容
                 const content = atob(contentData.content);
                 return {
@@ -90,13 +91,17 @@ const GitHubAPI = (function() {
                 };
             } catch (error) {
                 console.error(`獲取文件內容失敗 (${path}):`, error);
-                throw error;
+                return null; // 出錯時返回null而非拋出異常
             }
         },
         
         // 創建或更新文件
         createOrUpdateFile: async function(path, content, message = 'Update file') {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 // 先檢查文件是否已存在
                 let sha = null;
                 try {
@@ -111,7 +116,7 @@ const GitHubAPI = (function() {
                 // 準備請求數據
                 const requestData = {
                     message: message,
-                    content: btoa(content),
+                    content: btoa(unescape(encodeURIComponent(content))), // 修正編碼問題
                     committer: {
                         name: 'Health Education Videos Bot',
                         email: 'bot@example.com'
@@ -149,28 +154,47 @@ const GitHubAPI = (function() {
         // 確保數據目錄存在
         ensureDataDir: async function() {
             try {
-                // 檢查data目錄是否存在
-                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/data`, {
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Accept': 'application/vnd.github.v3+json'
-                    }
-                });
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
                 
-                if (response.status === 404) {
-                    // 創建data目錄（通過創建一個.gitkeep文件）
+                // 檢查data目錄是否存在
+                try {
+                    const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/data`, {
+                        headers: {
+                            'Authorization': `token ${token}`,
+                            'Accept': 'application/vnd.github.v3+json'
+                        }
+                    });
+                    
+                    if (response.status === 404) {
+                        // 創建data目錄（通過創建一個.gitkeep文件）
+                        await this.createOrUpdateFile('data/.gitkeep', '', 'Create data directory');
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    // 如果失敗，嘗試創建目錄
                     await this.createOrUpdateFile('data/.gitkeep', '', 'Create data directory');
+                    return true;
                 }
             } catch (error) {
                 console.error('確保數據目錄存在失敗:', error);
-                throw error;
+                return false; // 返回false而非拋出異常
             }
         },
         
         // 獲取主題列表
         getTopics: async function() {
             try {
-                await this.ensureDataDir();
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
+                const dirCreated = await this.ensureDataDir();
+                if (!dirCreated) {
+                    throw new Error('無法創建數據目錄');
+                }
                 
                 const fileData = await this.getFileContent('data/topics.json');
                 
@@ -188,16 +212,42 @@ const GitHubAPI = (function() {
                     return defaultTopics;
                 }
                 
-                return JSON.parse(fileData.content);
+                try {
+                    return JSON.parse(fileData.content);
+                } catch (parseError) {
+                    console.error('解析主題JSON失敗:', parseError);
+                    
+                    // 如果解析失敗，返回默認主題
+                    const defaultTopics = Array(30).fill().map((_, i) => ({
+                        id: i + 1,
+                        title: `衛教主題 ${i + 1}`,
+                        videoUrl: ''
+                    }));
+                    
+                    // 保存默認主題
+                    await this.saveTopics(defaultTopics);
+                    
+                    return defaultTopics;
+                }
             } catch (error) {
                 console.error('獲取主題列表失敗:', error);
-                throw error;
+                
+                // 直接返回本地默認主題，而不等待保存
+                return Array(30).fill().map((_, i) => ({
+                    id: i + 1,
+                    title: `衛教主題 ${i + 1}`,
+                    videoUrl: ''
+                }));
             }
         },
         
         // 保存主題列表
         saveTopics: async function(topics) {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 await this.ensureDataDir();
                 
                 // 確保每個主題都有ID
@@ -221,6 +271,10 @@ const GitHubAPI = (function() {
         // 獲取問卷列表
         getQuestionnaires: async function() {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 await this.ensureDataDir();
                 
                 const fileData = await this.getFileContent('data/questionnaires.json');
@@ -236,16 +290,25 @@ const GitHubAPI = (function() {
                     return [];
                 }
                 
-                return JSON.parse(fileData.content);
+                try {
+                    return JSON.parse(fileData.content);
+                } catch (parseError) {
+                    console.error('解析問卷JSON失敗:', parseError);
+                    return [];
+                }
             } catch (error) {
                 console.error('獲取問卷列表失敗:', error);
-                throw error;
+                return []; // 出錯時返回空數組而非拋出異常
             }
         },
         
         // 保存問卷列表
         saveQuestionnaires: async function(questionnaires) {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 await this.ensureDataDir();
                 
                 await this.createOrUpdateFile(
@@ -264,6 +327,10 @@ const GitHubAPI = (function() {
         // 獲取所有結果
         getAllResults: async function() {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 await this.ensureDataDir();
                 
                 const fileData = await this.getFileContent('data/results.json');
@@ -279,16 +346,25 @@ const GitHubAPI = (function() {
                     return [];
                 }
                 
-                return JSON.parse(fileData.content);
+                try {
+                    return JSON.parse(fileData.content);
+                } catch (parseError) {
+                    console.error('解析結果JSON失敗:', parseError);
+                    return [];
+                }
             } catch (error) {
                 console.error('獲取所有結果失敗:', error);
-                throw error;
+                return []; // 出錯時返回空數組而非拋出異常
             }
         },
         
         // 保存所有結果
         saveAllResults: async function(results) {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 await this.ensureDataDir();
                 
                 await this.createOrUpdateFile(
@@ -307,6 +383,10 @@ const GitHubAPI = (function() {
         // 添加單個結果
         saveResult: async function(result) {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 // 獲取所有結果
                 const allResults = await this.getAllResults();
                 
@@ -326,6 +406,10 @@ const GitHubAPI = (function() {
         // 獲取設定
         getSettings: async function() {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 await this.ensureDataDir();
                 
                 const fileData = await this.getFileContent('data/settings.json');
@@ -348,16 +432,36 @@ const GitHubAPI = (function() {
                     return defaultSettings;
                 }
                 
-                return JSON.parse(fileData.content);
+                try {
+                    return JSON.parse(fileData.content);
+                } catch (parseError) {
+                    console.error('解析設定JSON失敗:', parseError);
+                    
+                    // 返回默認設定
+                    return {
+                        nurseEmails: [],
+                        emailFrom: '',
+                        emailSecureToken: ''
+                    };
+                }
             } catch (error) {
                 console.error('獲取設定失敗:', error);
-                throw error;
+                // 出錯時返回默認設定而非拋出異常
+                return {
+                    nurseEmails: [],
+                    emailFrom: '',
+                    emailSecureToken: ''
+                };
             }
         },
         
         // 保存設定
         saveSettings: async function(settings) {
             try {
+                if (!token || !owner || !repo) {
+                    throw new Error('GitHub配置未完成，請先設定Token和倉庫信息');
+                }
+                
                 await this.ensureDataDir();
                 
                 await this.createOrUpdateFile(
