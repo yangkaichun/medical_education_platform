@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>衛教影片設定</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- 自定義CSS -->
+    <link href="css/styles.css" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1><i class="bi bi-sliders"></i> 衛教影片設定</h1>
+                <div>
+                    <a href="index.html" class="btn btn-outline-primary">返回首頁</a>
+                    <a href="admin.html" class="btn btn-outline-secondary">管理後台</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- 警告訊息容器 -->
+        <div id="alertContainer" class="alert-container"></div>
+
+        <!-- 標籤頁導航 -->
+        <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="topics-tab" data-bs-toggle="tab" data-bs-target="#topics" type="button" role="tab" aria-controls="topics" aria-selected="true">
+                    衛教主題設定
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="questionnaires-tab" data-bs-toggle="tab" data-bs-target="#questionnaires" type="button" role="tab" aria-controls="questionnaires" aria-selected="false">
+                    問卷編輯
+                </button>
+            </li>
+        </ul>
+
+        <!-- 標籤頁內容 -->
+        <div class="tab-content" id="settingsTabsContent">
+            <!-- 衛教主題設定 -->
+            <div class="tab-pane fade show active" id="topics" role="tabpanel" aria-labelledby="topics-tab">
+                <div class="topics-editor">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h3>衛教主題列表</h3>
+                        <button id="saveTopicsBtn" class="btn btn-primary">
+                            <i class="bi bi-save"></i> 保存設定
+                        </button>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th style="width: 10%;">#</th>
+                                    <th style="width: 45%;">主題名稱</th>
+                                    <th style="width: 45%;">影片URL</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topicsTableBody">
+                                <tr>
+                                    <td colspan="3" class="text-center">載入中...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info">
+                        <h5><i class="bi bi-info-circle"></i> 提示</h5>
+                        <ul>
+                            <li>影片URL可以是YouTube影片連結或MP4檔案直接連結</li>
+                            <li>YouTube連結格式範例: https://www.youtube.com/watch?v=abcdefghijk</li>
+                            <li>MP4連結格式範例: https://example.com/videos/sample.mp4</li>
+                            <li>保存後，這些主題將在用戶頁面可選</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 問卷編輯 -->
+            <div class="tab-pane fade" id="questionnaires" role="tabpanel" aria-labelledby="questionnaires-tab">
+                <div class="questionnaire-editor-container">
+                    <div class="questionnaire-topic-selector mb-4">
+                        <h3>問卷編輯</h3>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="questionnaireTopicSelect" class="form-label">選擇要編輯的主題</label>
+                                <select id="questionnaireTopicSelect" class="form-select">
+                                    <option value="">請選擇主題</option>
+                                    <!-- 主題選項將被JavaScript動態添加 -->
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="questionnaireEditor" style="display: none;">
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h4>問卷設定</h4>
+                                    <button id="saveQuestionnaireBtn" class="btn btn-primary">
+                                        <i class="bi bi-save"></i> 保存問卷
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label for="questionnaireTitle" class="form-label">問卷標題</label>
+                                    <input type="text" class="form-control" id="questionnaireTitle" placeholder="請輸入問卷標題">
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">問題列表</label>
+                                    <div id="questionsContainer" class="mb-3">
+                                        <!-- 問題將被JavaScript動態添加 -->
+                                    </div>
+                                    <button type="button" id="addQuestionBtn" class="btn btn-success">
+                                        <i class="bi bi-plus"></i> 添加問題
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h5><i class="bi bi-info-circle"></i> 提示</h5>
+                            <ul>
+                                <li>可以創建是非題或選擇題</li>
+                                <li>每個問題可以設置分數</li>
+                                <li>為每個問題設定正確答案，用於計算分數</li>
+                                <li>選擇題可以添加多個選項</li>
+                                <li>保存後，這些問卷將在用戶觀看完影片後顯示</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- GitHub Token設定模態框 -->
+    <div class="modal fade" id="tokenConfigModal" data-bs-backdrop="static" tabindex="-1" aria-labelledby="tokenConfigModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tokenConfigModalLabel">GitHub設定</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <p>首次使用需要設定GitHub存取權限。</p>
+                        <p>請依照README文件的指示生成GitHub Token，並填寫以下資訊。</p>
+                    </div>
+                    <form>
+                        <div class="mb-3">
+                            <label for="githubToken" class="form-label">GitHub Token</label>
+                            <input type="password" class="form-control" id="githubToken" placeholder="請輸入GitHub Token">
+                            <div class="form-text">請在GitHub的設定中生成一個具有repo權限的Personal Access Token</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="repoOwner" class="form-label">GitHub用戶名</label>
+                            <input type="text" class="form-control" id="repoOwner" placeholder="請輸入GitHub用戶名">
+                        </div>
+                        <div class="mb-3">
+                            <label for="repoName" class="form-label">存儲庫名稱</label>
+                            <input type="text" class="form-control" id="repoName" placeholder="請輸入存儲庫名稱">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveTokenConfig">保存設定</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="bg-light py-3 mt-5">
+        <div class="container text-center">
+            <p class="text-muted mb-0">© 2025 衛教影片網站. 保留所有權利。</p>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- GitHub API 處理 -->
+    <script src="js/github-api.js"></script>
+    <!-- 設定頁面JavaScript -->
+    <script src="js/settings.js"></script>
+</body>
+</html>
