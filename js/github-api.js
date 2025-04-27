@@ -84,7 +84,7 @@ const GitHubAPI = (function() {
                 }
                 
                 // 解碼base64內容
-                const content = atob(contentData.content);
+                const content = decodeURIComponent(escape(atob(contentData.content)));
                 return {
                     content: content,
                     sha: contentData.sha
